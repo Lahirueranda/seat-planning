@@ -1,19 +1,46 @@
 'use client';
 
 import { useState } from 'react';
+import type { VenueShape, ShapeKind } from '@/app/types/seat';
 
 interface Props {
   seatCount: number;
+  selectedShape: VenueShape | null;
   onAddSingleSeat: (price: number) => void;
   onAddRow: (count: number, price: number) => void;
+  onAddShape: (kind: ShapeKind) => void;
+  onUpdateShapeLabel: (id: string, label: string) => void;
+  onUpdateShapeColor: (id: string, color: string) => void;
+  onBringToFront: (id: string) => void;
+  onSendToBack: (id: string) => void;
+  onDeleteShape: (id: string) => void;
   onSave: () => void;
 }
 
-export default function Sidebar({ seatCount, onAddSingleSeat, onAddRow, onSave }: Props) {
+const SHAPE_BUTTONS: { kind: ShapeKind; label: string; cls: string }[] = [
+  { kind: 'stage',   label: 'Stage',        cls: 'bg-slate-700 hover:bg-slate-800' },
+  { kind: 'bar',     label: 'Bar',           cls: 'bg-amber-800 hover:bg-amber-900' },
+  { kind: 'pillar',  label: 'Pillar',        cls: 'bg-gray-500 hover:bg-gray-600'  },
+  { kind: 'section', label: 'Section Zone',  cls: 'bg-indigo-600 hover:bg-indigo-700' },
+];
+
+export default function Sidebar({
+  seatCount,
+  selectedShape,
+  onAddSingleSeat,
+  onAddRow,
+  onAddShape,
+  onUpdateShapeLabel,
+  onUpdateShapeColor,
+  onBringToFront,
+  onSendToBack,
+  onDeleteShape,
+  onSave,
+}: Props) {
   const [singlePrice, setSinglePrice] = useState(50);
-  const [rowCount, setRowCount] = useState(8);
-  const [rowPrice, setRowPrice] = useState(50);
-  const [saved, setSaved] = useState(false);
+  const [rowCount,    setRowCount]    = useState(8);
+  const [rowPrice,    setRowPrice]    = useState(50);
+  const [saved,       setSaved]       = useState(false);
 
   const handleSave = () => {
     onSave();
@@ -22,7 +49,8 @@ export default function Sidebar({ seatCount, onAddSingleSeat, onAddRow, onSave }
   };
 
   return (
-    <aside className="w-72 bg-white border-r border-slate-200 flex flex-col p-6 gap-5 shadow-sm shrink-0">
+    <aside className="w-72 bg-white border-r border-slate-200 flex flex-col p-6 gap-5 shadow-sm shrink-0 overflow-y-auto">
+      {/* Header */}
       <div>
         <h1 className="text-lg font-bold text-slate-800 tracking-tight">Seat Map Builder</h1>
         <p className="text-sm text-slate-400 mt-0.5">
@@ -32,14 +60,99 @@ export default function Sidebar({ seatCount, onAddSingleSeat, onAddRow, onSave }
 
       <Divider />
 
+      {/* ── Layout Shapes ── */}
       <section className="flex flex-col gap-3">
-        <SectionLabel>Single Seat</SectionLabel>
+        <Label>Layout Shapes</Label>
+        <div className="grid grid-cols-2 gap-2">
+          {SHAPE_BUTTONS.map(({ kind, label, cls }) => (
+            <button
+              key={kind}
+              onClick={() => onAddShape(kind)}
+              className={`${cls} text-white rounded-lg py-2 px-2 text-xs font-medium transition-colors`}
+            >
+              + {label}
+            </button>
+          ))}
+        </div>
+        <p className="text-xs text-slate-400">Click a shape to select → drag anchors to resize / rotate.</p>
+      </section>
+
+      {/* ── Selection panel (shown only when a shape is selected) ── */}
+      {selectedShape && (
+        <>
+          <Divider />
+          <section className="flex flex-col gap-3">
+            <div className="flex items-center gap-2">
+              <Label>Selected Shape</Label>
+              <span className="ml-auto text-xs bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full capitalize">
+                {selectedShape.kind}
+              </span>
+            </div>
+
+            {/* Editable label */}
+            <Field label="Label">
+              <input
+                type="text"
+                value={selectedShape.label}
+                onChange={(e) => onUpdateShapeLabel(selectedShape.id, e.target.value)}
+                placeholder="Shape label…"
+                className="border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </Field>
+
+            {/* Editable color */}
+            <Field label="Color">
+              <div className="flex items-center gap-2">
+                <input
+                  type="color"
+                  value={selectedShape.fill.startsWith('rgba') ? '#6366f1' : selectedShape.fill}
+                  onChange={(e) => onUpdateShapeColor(selectedShape.id, e.target.value)}
+                  className="w-10 h-10 rounded border border-slate-200 p-1 cursor-pointer"
+                />
+                <input
+                  type="text"
+                  value={selectedShape.fill}
+                  onChange={(e) => onUpdateShapeColor(selectedShape.id, e.target.value)}
+                  className="flex-1 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono uppercase"
+                />
+              </div>
+            </Field>
+
+            {/* Z-index controls */}
+            <div className="flex gap-2">
+              <button
+                onClick={() => onBringToFront(selectedShape.id)}
+                title="Bring to Front"
+                className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg py-2 text-xs font-medium transition-colors"
+              >
+                ↑ Bring Front
+              </button>
+              <button
+                onClick={() => onSendToBack(selectedShape.id)}
+                title="Send to Back"
+                className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg py-2 text-xs font-medium transition-colors"
+              >
+                ↓ Send Back
+              </button>
+            </div>
+
+            <button
+              onClick={() => onDeleteShape(selectedShape.id)}
+              className="w-full bg-red-50 hover:bg-red-100 text-red-600 rounded-lg py-2 text-xs font-medium transition-colors"
+            >
+              Delete Shape
+            </button>
+          </section>
+        </>
+      )}
+
+      <Divider />
+
+      {/* ── Single Seat ── */}
+      <section className="flex flex-col gap-3">
+        <Label>Single Seat</Label>
         <Field label="Price ($)">
-          <NumberInput
-            value={singlePrice}
-            min={0}
-            onChange={setSinglePrice}
-          />
+          <NumberInput value={singlePrice} min={0} onChange={setSinglePrice} />
         </Field>
         <button
           onClick={() => onAddSingleSeat(singlePrice)}
@@ -51,22 +164,14 @@ export default function Sidebar({ seatCount, onAddSingleSeat, onAddRow, onSave }
 
       <Divider />
 
+      {/* ── Row of Seats ── */}
       <section className="flex flex-col gap-3">
-        <SectionLabel>Row of Seats</SectionLabel>
+        <Label>Row of Seats</Label>
         <Field label="Number of seats">
-          <NumberInput
-            value={rowCount}
-            min={1}
-            max={20}
-            onChange={setRowCount}
-          />
+          <NumberInput value={rowCount} min={1} max={20} onChange={setRowCount} />
         </Field>
         <Field label="Price per seat ($)">
-          <NumberInput
-            value={rowPrice}
-            min={0}
-            onChange={setRowPrice}
-          />
+          <NumberInput value={rowPrice} min={0} onChange={setRowPrice} />
         </Field>
         <button
           onClick={() => onAddRow(rowCount, rowPrice)}
@@ -78,6 +183,7 @@ export default function Sidebar({ seatCount, onAddSingleSeat, onAddRow, onSave }
 
       <Divider />
 
+      {/* ── Save ── */}
       <div className="mt-auto flex flex-col gap-2">
         <button
           onClick={handleSave}
@@ -91,11 +197,13 @@ export default function Sidebar({ seatCount, onAddSingleSeat, onAddRow, onSave }
   );
 }
 
+/* ── Small helpers ─────────────────────────────────────────────────── */
+
 function Divider() {
   return <hr className="border-slate-100" />;
 }
 
-function SectionLabel({ children }: { children: React.ReactNode }) {
+function Label({ children }: { children: React.ReactNode }) {
   return (
     <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-widest">{children}</h2>
   );
@@ -111,10 +219,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 }
 
 function NumberInput({
-  value,
-  min,
-  max,
-  onChange,
+  value, min, max, onChange,
 }: {
   value: number;
   min?: number;
