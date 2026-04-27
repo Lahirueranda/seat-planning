@@ -8,20 +8,31 @@ interface Props {
   selectedShape: VenueShape | null;
   onAddSingleSeat: (price: number) => void;
   onAddRow: (count: number, price: number) => void;
-  onAddShape: (kind: ShapeKind) => void;
+  onAddCurvedBlock: (
+    rows: number,
+    seatsPerRow: number,
+    radius: number,
+    startAngle: number,
+    arcAngle: number,
+    price: number,
+  ) => void;
+  onAddShape: (kind: ShapeKind | 'wedge') => void;
   onUpdateShapeLabel: (id: string, label: string) => void;
   onUpdateShapeColor: (id: string, color: string) => void;
+  onUpdateShapeTension: (id: string, tension: number) => void;
+  onUpdateShapeRotation: (id: string, rotation: number) => void;
   onBringToFront: (id: string) => void;
   onSendToBack: (id: string) => void;
   onDeleteShape: (id: string) => void;
   onSave: () => void;
 }
 
-const SHAPE_BUTTONS: { kind: ShapeKind; label: string; cls: string }[] = [
+const SHAPE_BUTTONS: { kind: ShapeKind | 'wedge'; label: string; cls: string }[] = [
   { kind: 'stage',   label: 'Stage',        cls: 'bg-slate-700 hover:bg-slate-800' },
   { kind: 'bar',     label: 'Bar',           cls: 'bg-amber-800 hover:bg-amber-900' },
   { kind: 'pillar',  label: 'Pillar',        cls: 'bg-gray-500 hover:bg-gray-600'  },
   { kind: 'section', label: 'Section Zone',  cls: 'bg-indigo-600 hover:bg-indigo-700' },
+  { kind: 'wedge',   label: 'Stadium Wedge', cls: 'bg-blue-600 hover:bg-blue-700' },
 ];
 
 export default function Sidebar({
@@ -29,9 +40,12 @@ export default function Sidebar({
   selectedShape,
   onAddSingleSeat,
   onAddRow,
+  onAddCurvedBlock,
   onAddShape,
   onUpdateShapeLabel,
   onUpdateShapeColor,
+  onUpdateShapeTension,
+  onUpdateShapeRotation,
   onBringToFront,
   onSendToBack,
   onDeleteShape,
@@ -40,6 +54,15 @@ export default function Sidebar({
   const [singlePrice, setSinglePrice] = useState(50);
   const [rowCount,    setRowCount]    = useState(8);
   const [rowPrice,    setRowPrice]    = useState(50);
+
+  // Curved section state
+  const [curvRows,     setCurvRows]     = useState(5);
+  const [curvSPerRow,  setCurvSPerRow]  = useState(10);
+  const [curvRadius,   setCurvRadius]   = useState(300);
+  const [curvStartAng, setCurvStartAng] = useState(180);
+  const [curvArcAng,   setCurvArcAng]   = useState(180);
+  const [curvPrice,    setCurvPrice]    = useState(100);
+
   const [saved,       setSaved]       = useState(false);
 
   const handleSave = () => {
@@ -118,6 +141,34 @@ export default function Sidebar({
               </div>
             </Field>
 
+            {/* Curvature (Tension) */}
+            {selectedShape.points && (
+              <Field label={`Curvature (${Math.round((selectedShape.tension || 0) * 100)}%)`}>
+                <input
+                  type="range"
+                  min="0"
+                  max="0.5"
+                  step="0.01"
+                  value={selectedShape.tension || 0}
+                  onChange={(e) => onUpdateShapeTension(selectedShape.id, parseFloat(e.target.value))}
+                  className="w-full accent-blue-600"
+                />
+              </Field>
+            )}
+
+            {/* Rotation */}
+            <Field label={`Rotation (${Math.round(selectedShape.rotation)}°)`}>
+              <input
+                type="range"
+                min="0"
+                max="360"
+                step="1"
+                value={selectedShape.rotation}
+                onChange={(e) => onUpdateShapeRotation(selectedShape.id, Number(e.target.value))}
+                className="w-full accent-blue-600"
+              />
+            </Field>
+
             {/* Z-index controls */}
             <div className="flex gap-2">
               <button
@@ -159,6 +210,39 @@ export default function Sidebar({
           className="bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-lg py-2 px-4 text-sm font-medium transition-colors"
         >
           + Add Single Seat
+        </button>
+      </section>
+
+      <Divider />
+
+      {/* ── Curved Seating (Stadium Style) ── */}
+      <section className="flex flex-col gap-3 bg-slate-50 -mx-6 px-6 py-5 border-y border-slate-100">
+        <Label>Curved Seating</Label>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Rows">
+            <NumberInput value={curvRows} min={1} max={20} onChange={setCurvRows} />
+          </Field>
+          <Field label="Seats / Row">
+            <NumberInput value={curvSPerRow} min={1} max={50} onChange={setCurvSPerRow} />
+          </Field>
+          <Field label="Radius">
+            <NumberInput value={curvRadius} min={50} max={2000} onChange={setCurvRadius} />
+          </Field>
+          <Field label="Start Angle">
+            <NumberInput value={curvStartAng} min={0} max={360} onChange={setCurvStartAng} />
+          </Field>
+          <Field label="Arc Angle">
+            <NumberInput value={curvArcAng} min={10} max={360} onChange={setCurvArcAng} />
+          </Field>
+          <Field label="Price ($)">
+            <NumberInput value={curvPrice} min={0} onChange={setCurvPrice} />
+          </Field>
+        </div>
+        <button
+          onClick={() => onAddCurvedBlock(curvRows, curvSPerRow, curvRadius, curvStartAng, curvArcAng, curvPrice)}
+          className="mt-2 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white rounded-lg py-2 px-4 text-sm font-medium transition-colors shadow-sm"
+        >
+          + Add Curved Block
         </button>
       </section>
 

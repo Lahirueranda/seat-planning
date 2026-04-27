@@ -29,6 +29,7 @@ interface Props {
     height: number,
     rotation: number,
   ) => void;
+  onShapePointsChange: (id: string, points: number[]) => void;
   onSelect: (id: string | null) => void;
 }
 
@@ -45,6 +46,7 @@ export default function SeatCanvas({
   onSeatDragEnd,
   onShapeDragEnd,
   onShapeTransformEnd,
+  onShapePointsChange,
   onSelect,
 }: Props) {
   const stageRef = useRef<Konva.Stage>(null);
@@ -159,6 +161,7 @@ export default function SeatCanvas({
             onSelect={() => onSelect(shape.id)}
             onDragEnd={(x, y, dx, dy) => onShapeDragEnd(shape.id, x, y, dx, dy)}
             onTransformEnd={(x, y, w, h, r) => onShapeTransformEnd(shape.id, x, y, w, h, r)}
+            onPointsChange={(pts) => onShapePointsChange(shape.id, pts)}
             onNodeRef={(node) => registerNode(shape.id, node)}
           />
         ))}

@@ -21,6 +21,7 @@ export default function SeatNode({ seat, onDragEnd }: Props) {
     <Group
       x={seat.x}
       y={seat.y}
+      rotation={seat.rotation ?? 0}
       draggable
       onMouseEnter={(e) => setCursor(e, 'grab')}
       onMouseLeave={(e) => setCursor(e, 'default')}

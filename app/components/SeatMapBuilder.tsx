@@ -102,7 +102,59 @@ export default function SeatMapBuilder() {
     });
   }, []);
 
-  // On seat drop: reassign sectionId based on which section (if any) contains it.
+  const addCurvedBlock = useCallback(
+    (rows: number, seatsPerRow: number, startRadius: number, startAngle: number, arcAngle: number, price: number) => {
+      const { width, height } = canvasSizeRef.current;
+      // Use center of canvas as default pivot if we don't have a better one
+      const centerX = width / 2;
+      const centerY = height / 2;
+
+      setMap((prev) => {
+        const blockId = Math.random().toString(36).slice(2, 5);
+        const newSeats: Seat[] = [];
+        let currentSeatCounter = prev.seatCounter;
+
+        for (let r = 0; r < rows; r++) {
+          const radius = startRadius + r * SEAT_SPACING;
+          // As radius increases, we could potentially fit more seats, 
+          // but for now let's keep seatsPerRow constant or slightly increasing
+          const rowSeatCount = seatsPerRow;
+          const angleStep = arcAngle / (rowSeatCount - 1);
+
+          for (let s = 0; s < rowSeatCount; s++) {
+            currentSeatCounter++;
+            const angle = startAngle + s * angleStep;
+            const angleRad = (angle * Math.PI) / 180;
+
+            const x = centerX + radius * Math.cos(angleRad);
+            const y = centerY + radius * Math.sin(angleRad);
+            
+            // Rotation: point away from center (or towards depending on preference)
+            // Konva rotation is in degrees. Math.atan2 gives radians.
+            // Center is (centerX, centerY). Seat is (x, y).
+            // Facing "outwards":
+            const rotation = angle + 90; 
+
+            newSeats.push({
+              id: `c-${blockId}-r${r}-s${s}`,
+              x,
+              y,
+              label: `${r + 1}-${s + 1}`,
+              price,
+              rotation,
+            });
+          }
+        }
+
+        return {
+          ...prev,
+          seatCounter: currentSeatCounter,
+          seats: [...prev.seats, ...newSeats],
+        };
+      });
+    },
+    [],
+  );
   const handleSeatDragEnd = useCallback((id: string, x: number, y: number) => {
     setMap((prev) => {
       const sections = prev.shapes.filter((s) => s.kind === 'section');
@@ -118,7 +170,7 @@ export default function SeatMapBuilder() {
 
   // ── Shape helpers ────────────────────────────────────────────────────────────
 
-  const addShape = useCallback((kind: ShapeKind) => {
+  const addShape = useCallback((kind: ShapeKind | 'wedge') => {
     const { width, height } = canvasSizeRef.current;
     setMap((prev) => {
       const counter = prev.shapeCounter + 1;
@@ -127,14 +179,14 @@ export default function SeatMapBuilder() {
       // all other shapes stack above the current maximum.
       const maxZ = prev.shapes.reduce((m, s) => Math.max(m, s.zIndex), 0);
       const minZ = prev.shapes.reduce((m, s) => Math.min(m, s.zIndex), 0);
-      const zIndex = kind === 'section' ? minZ - 1 : maxZ + 1;
+      const zIndex = (kind === 'section' || kind === 'wedge') ? minZ - 1 : maxZ + 1;
       const shape: VenueShape = {
         ...preset,
         id: `shape-${counter}-${Math.random().toString(36).slice(2, 7)}`,
         x: width / 2,
         y: height / 2,
         zIndex,
-      };
+      } as VenueShape;
       return { ...prev, shapeCounter: counter, shapes: [...prev.shapes, shape] };
     });
   }, []);
@@ -183,6 +235,27 @@ export default function SeatMapBuilder() {
     setMap((prev) => ({
       ...prev,
       shapes: prev.shapes.map((s) => (s.id === id ? { ...s, fill } : s)),
+    }));
+  }, []);
+
+  const updateShapePoints = useCallback((id: string, points: number[]) => {
+    setMap((prev) => ({
+      ...prev,
+      shapes: prev.shapes.map((s) => (s.id === id ? { ...s, points } : s)),
+    }));
+  }, []);
+
+  const updateShapeTension = useCallback((id: string, tension: number) => {
+    setMap((prev) => ({
+      ...prev,
+      shapes: prev.shapes.map((s) => (s.id === id ? { ...s, tension } : s)),
+    }));
+  }, []);
+
+  const updateShapeRotation = useCallback((id: string, rotation: number) => {
+    setMap((prev) => ({
+      ...prev,
+      shapes: prev.shapes.map((s) => (s.id === id ? { ...s, rotation } : s)),
     }));
   }, []);
 
@@ -260,9 +333,12 @@ export default function SeatMapBuilder() {
         selectedShape={selectedShape}
         onAddSingleSeat={addSingleSeat}
         onAddRow={addRowOfSeats}
+        onAddCurvedBlock={addCurvedBlock}
         onAddShape={addShape}
         onUpdateShapeLabel={updateShapeLabel}
         onUpdateShapeColor={updateShapeColor}
+        onUpdateShapeTension={updateShapeTension}
+        onUpdateShapeRotation={updateShapeRotation}
         onBringToFront={bringToFront}
         onSendToBack={sendToBack}
         onDeleteShape={deleteShape}
@@ -291,6 +367,7 @@ export default function SeatMapBuilder() {
           onSeatDragEnd={handleSeatDragEnd}
           onShapeDragEnd={handleShapeDragEnd}
           onShapeTransformEnd={handleShapeTransformEnd}
+          onShapePointsChange={updateShapePoints}
           onSelect={setSelectedId}
         />
 
